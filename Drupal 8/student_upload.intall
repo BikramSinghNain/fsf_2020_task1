@@ -1,0 +1,55 @@
+<?php
+
+function student_upload_install(){
+ 
+    $schema = array(
+        'description'=>'Table to store data for student marks',
+        'fields'=>array(
+            //For Student ID
+                'student_id'=>array(
+                'description'=>'Student Id',
+                'type'=>'varchar',
+                'length'=>20,
+                'not null'=>true
+                ),
+
+             //To store File Name    
+               'filename'=>array(
+                'description'=>'File Name',
+                'type'=>'varchar',
+                'length'=>40,
+                'not null'=>true
+                ),
+             //To store Feedbacks    
+            
+                'feedback'=>array(
+                    'description'=>'Feedback',
+                    'type'=>'varchar',
+                    'length'=>200,
+                    'not null'=>true
+                ),
+             //To store Rating     
+
+                'rating'=>array(
+                    'description'=>'Rating',
+                    'type'=>'int',
+                    'default' => 1,
+                    'not null'=>true
+                ),
+             //To store full File name      
+
+                'show_filename'=>array(
+                    'description'=>'File name',
+                    'type'=>'varchar',
+                    'length'=>200,
+                    
+                ), 
+                    
+            
+            )
+    );
+     if(!db_table_exists('student_upload_data'))
+        db_create_table('student_upload_data',$schema);
+
+}
+
