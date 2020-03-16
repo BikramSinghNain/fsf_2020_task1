@@ -1,0 +1,6 @@
+student_upload.admin:
+  title: 'student_upload module settings'
+  description: 'Student Assignment Upload'
+  parent: system.admin_config_development
+  route_name: student_upload.content
+  weight: 100
