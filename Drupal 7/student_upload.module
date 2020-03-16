@@ -1,0 +1,284 @@
+<?php
+//Implimetation oh hook_menu 
+
+function student_upload_menu(){
+    $arr = array();
+    $arr['assignment'] = array(
+        'title'=>"Assignment Submition",
+        "description" => "",
+        "page callback" => "student_upload_view",
+        "access callback"=> true
+    );
+   
+     return $arr;
+}
+
+function student_upload_view(){
+    global $user;
+    if(in_array('Teacher',$user->roles)){
+        return drupal_get_form("student_upload_teacher");
+    }
+    return drupal_get_form("student_upload_student");
+    
+}
+
+function student_upload_student($form,&$formState){
+    $ext = variable_get('teacher_extension');
+    
+    $form['studentid']=array(
+     '#type'=>'textfield',
+     '#title'=>t('Student ID'),
+     '#size'=>30,
+     '#maxlength'=>20,
+     '#required'=>true
+     );
+     $form["somediv"] = array(
+        '#type'=>'markup',
+        '#prefix'=>'<div><b>Extensions : </b>'.$ext,
+        '#suffix'=>'</div>'
+     );
+    $form["file1"] = array(
+        '#type' => 'file',
+        '#title' => t('Choose a file'),
+        '#size' => 22,
+      );
+     // The save Button
+   $form['save'] = array(
+        '#type' => 'submit', 
+        '#value' => t('Save or Modify'),
+        '#ajax' => array(
+            'callback' => 'student_upload_save_student',
+            )
+    );
+    // The all summision button
+    $form['submit']=array(
+        '#type'=>'submit',
+        '#value'=>t('All Summitions'),
+        '#ajax'=>array(
+            'callback'=>'student_upload_all_sum')
+    
+    );
+    
+   // Div to Display the Submitions
+     $form['display_assignment']=array(
+        '#type'=>'markup',
+        '#prefix'=>'<div id="display_files">',
+        '#suffix'=>'</div>'
+     );
+   return $form;
+}
+
+// Function to Save The Data to the database
+function student_upload_save_student($form,&$formState){
+    $message = "Data Can't Be Saved"; 
+    $data = array(); // The row field variable to store values 
+    $data['student_id'] = $formState['values']['studentid'];
+    $data['filename'] = '';
+    $data['show_filename'] = '';
+    $data['feedback'] = 'No Feedback';
+    $data['rating'] = 1;   
+
+    $ext = variable_get('teacher_extension');
+    $val = array(
+        'file_validate_extensions' => array($ext),
+    );
+    $file = file_save_upload('file1',$val,"public://");
+      
+       if ($file) {
+        if ($file = file_move($file, 'public://', FILE_EXISTS_RENAME)) {
+            $data['filename'] = $file->uri;
+            $data['show_filename'] = $file->filename;
+        }
+        else {
+          form_set_error('file', t('Failed to write the uploaded file the site\'s file folder.'));
+        }
+      }
+      else {
+        form_set_error('file', t('No file was uploaded.'));
+      }
+    /// Check Wether the Student ID  is not empty
+    $is_empty = false;
+    foreach($data as $d)
+        if(is_string($d) && empty($d))
+            $is_empty = true;
+    // if table exist and roll no and name is not empty then add the data to the database
+    if(!$is_empty && db_table_exists('student_upload_data')){
+        $query = db_insert('student_upload_data');
+        $query->fields($data)->execute();
+        $message = '<b>Data Saved</b>'; // Change the message to data is saved
+    }
+    $commands[] = ajax_command_invoke(NULL,"diplaySave",array($message));
+    return array('#type'=>'ajax','#commands'=>$commands);
+}
+
+
+
+
+// The ajax callback function to Display the Data 
+function student_upload_all_sum($form,&$formState){
+
+
+    $out = ''; // variable to store the output html
+    // Check wether table exist
+    if(db_table_exists('student_upload_data')){
+        $query = db_query('SELECT * FROM student_upload_data WHERE student_id = (:val)',array(':val'=>$formState['values']['studentid']));
+        $rows = $query->fetchall(); 
+        if(count($rows) < 1) $out = '<b>  Not Found :( </b>';
+        else{
+            $out .= '<table><tr><th>File Name</th><th>Feedback</th><th>Rating</th></tr>';
+            foreach($rows as $row){
+                $out .= '<tr>';
+                $out .= '<td><a href="sites/default/files/'.str_replace("public://","",$row->filename).'">'.$row->show_filename.'</a></td>';
+                $out .= '<td>'.$row->feedback.'</td>';
+                $out .= '<td>'.$row->rating.'/5</td>';
+                $out .= '</tr>';
+            }
+            $out .= '</table>';           
+        }
+    }else $out = '<b>Data Not Found :( </b>';
+    $commands[] = ajax_command_invoke(NULL,"diplaySave",array($out));
+    return array('#type'=>'ajax','#commands'=>$commands);    
+}
+
+
+function student_upload_teacher($form,&$formState){    
+    $form['task_taken'] = array(
+            '#type' => 'checkboxes',
+            '#options' => drupal_map_assoc(array(t('Java'),t("Text"),t("Pdf"),t("C"),t("Ruby"),t("Php"),t("JavaScript"),t("Jpg"), t('C++'),t('Python'))),
+            '#title' => t('Select File Format'),
+        );
+
+   // The Submit Button
+   $form['submit'] = array(
+    '#type' => 'submit', 
+    '#value' => t('Save'),
+    '#ajax' => array(
+        'callback' => 'student_upload_save_teacher',
+        )
+);
+     // The Display All Button
+     $form['displayallsubmition'] = array(
+        '#type'=>'submit',
+        '#value'=>t('Display ALL Submitions'),
+        '#ajax' => array(
+            'callback' =>'student_upload_all',
+            'wrapper' => 'display_files'
+            )
+    );    
+
+    // A Div to Display the Results
+    $form['save_div']=array(
+        '#type'=>'markup',
+        '#prefix'=>'<div id="display_files">',    
+        '#suffix'=>'</div>'
+    ); 
+      return $form; 
+}
+function  student_upload_save_feed($form,$formState){
+    $query = db_query('SELECT * FROM student_upload_data');
+    $rows = $query->fetchall(); 
+    $cnt = count($rows);
+    for($i=0;$i<$cnt;$i++){
+        $feed = $formState['values']['stu_feedbak'.$i];
+        $rat = $formState['values']['rating'.$i] + 1;
+        if(strcmp($feed,$rows[$i]->feedback) != 0 || $rows[$i]->rating != $rat){
+            try{
+                db_query("UPDATE student_upload_data SET feedback = :feed,rating = :rat WHERE filename = :sid",array(
+                    ":feed"=>$feed,
+                    ":rat"=>$rat,
+                    ':sid'=> $rows[$i]->filename
+                ))->execute();
+            }catch(Exception $e){
+            }
+        }
+    }
+    return $form;
+}
+function student_upload_feed($form,&$formState){
+    $form['save_btn'] = array(
+        '#type'=>'submit',
+        '#value'=>t('Update'),
+        '#ajax' => array(
+            'callback' =>'student_upload_save_feed',
+            'wrapper' => 'display_files'
+            )
+    );
+    if(db_table_exists('student_upload_data')){
+        $query = db_query('SELECT * FROM student_upload_data');
+        $rows = $query->fetchall(); 
+        // if(count($rows) < 1) $out = '<b>  Not Found :( </b>';
+        // else{
+            $form['table_open']=array(
+                '#type'=>'markup',
+                '#prefix'=>'<table><tr><th>Student ID</th><th>File Name</th><th>Feedback</th><th>Rating</th></tr>',    
+            );
+            for($i = 0;$i < count($rows);$i++){
+                $row = $rows[$i];
+                $form['stu_open'.$i]=array(
+                    '#type'=>'markup',
+                    '#prefix'=>'<tr><td>'.$row->student_id.'</td><td><a href="sites/default/files/'.str_replace("public://","",$row->filename).'" target="_blank">'.$row->show_filename.'</a></td>',    
+                );        
+                $form['stu_feedbak'.$i]=array(
+                    '#type'=>'textfield',
+                    '#prefix'=>'<td>',    
+                    '#suffix'=>'</td>',
+                    '#default_value'=> $row->feedback 
+                );        
+                $form['rating'.$i] = array(
+                    '#type' => 'select',
+                    '#prefix'=>'<td>',    
+                    '#suffix'=>'</td>',    
+                    '#options' => array(
+                       0 => t('1'),
+                      1 => t('2'),
+                      2 => t('3'),
+                      3 => t('4'),
+                      4 => t('5'),
+                    ),
+                    '#default_value' => ($row->rating - 1),
+                );
+                $form['stu_close'.$i]=array(
+                    '#type'=>'markup',
+                    '#suffix'=>'</tr>'   
+                );         
+            }
+            $form['table_close']=array(
+                '#type'=>'markup',
+                '#suffix'=>'</div>'
+            ); 
+    }
+    return $form;
+}
+function student_upload_all($form,&$formState){
+    return drupal_get_form("student_upload_feed");
+}
+// Function to Save The Data to the database
+function student_upload_save_teacher($form,&$formState){
+    $message = "Data  Saved"; // message variable to be Printed
+    $data = array(); // The row field variable to store values
+    $temp = ''; 
+    $mapping = array(
+        'Pdf' => 'pdf',
+        "Text" => 'txt',
+        "Java" => 'java',
+        "C" => "c",
+        "Ruby" => "rb",
+        'Php' => "php",
+        "JavaScript" => "js",
+        "Jpg" => "jpg jpeg",
+        "C++" => "cpp",
+        "Python" => "py"
+    );
+    foreach($formState['values']['task_taken'] as $key => $value){
+        if(strcmp($key,$value) == 0) 
+        $temp .= $mapping[$key]  . ' ';  
+    }
+    variable_set('teacher_extension_state',$formState['values']['task_taken']);
+    variable_set('teacher_extension',$temp);  
+  
+    $commands[] = ajax_command_invoke(NULL,"diplaySave",array('<strong>'.$message.'</strong>'));
+    return array('#type'=>'ajax','#commands'=>$commands);
+}
+
+
+
