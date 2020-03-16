@@ -1,0 +1,17 @@
+student_upload.teacher_form:
+  path: '/student'
+  defaults:
+    _form: 'Drupal\student_upload\Form\studentviewForm'
+    _title: 'For students'
+  requirements:
+    _permission: 'access content'
+    # acces not define
+
+student_upload.student_form:
+  path: '/teacher'
+  defaults:
+    _form: 'Drupal\student_upload\Form\teacherviewForm'
+    _title: 'For Teachers'
+  requirements:
+    _permission: 'access content'
+
