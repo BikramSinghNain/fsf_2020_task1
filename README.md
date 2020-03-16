@@ -1,2 +1,2 @@
 # fsf_2020_task1
-Assignment submission interface using a custom module in Drupal 7.   
+Assignment submission interface using a custom module in Drupal 7 and Drupal 8.
