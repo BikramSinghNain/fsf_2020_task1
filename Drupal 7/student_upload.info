@@ -1,0 +1,6 @@
+name="Teachers"
+description="It is a Drupal Module , Which submit assignments  upon the role of the students."
+core=7.x
+
+; Add The Js File to The Module
+scripts[] = js/display.js
